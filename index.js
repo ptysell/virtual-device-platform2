@@ -72,7 +72,7 @@ function VirtualDeviceAccessory(log, device) {
 	this._state = false;
 	
 	this._accessoryService = new VirtualDeviceAccessorySwitch(this.log, this.name + " TEST Accessory", this._state);
-	this._accessoryactionService = new VirtualDeviceAccessoryAction(this.log, this.name + " TEST Accessory Action", this._accessoryService);
+	//this._accessoryactionService = new VirtualDeviceAccessoryAction(this.log, this.name + " TEST Accessory Action", this._accessoryService);
 	
 
 	 this._service = new Service.Lightbulb(this.name);
