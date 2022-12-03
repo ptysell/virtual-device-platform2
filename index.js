@@ -41,7 +41,7 @@ VirtualDevicePlatform.prototype = {
 			// accessory.setAccessoryAction(accessoryaction);
       //
       //
-			// foundAccessories.push(accessory);
+			foundAccessories.push(accessory);
 			// foundAccessories.push(accessoryaction);
 		}
 
