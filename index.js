@@ -16,7 +16,7 @@ function VirtualDevicePlatform(log, config){
 	this.log = log;
   this.name = config.name;
   this.devices = config["devices"];
-  
+
 }
 
 VirtualDevicePlatform.prototype = {
@@ -24,38 +24,30 @@ VirtualDevicePlatform.prototype = {
 		var foundAccessories = [];
 		var index = 0;
 		var count = this.devices.length;
-		
+
 		var accessorygroup  = new VirtualDeviceAccessoryGroup(
-				this.log, 
+				this.log,
 				this.name);
-		
+
 		foundAccessories.push(accessorygroup);
 		for(index=0; index< count; ++index){
 			var accessory  = new VirtualDeviceAccessory(
-				this.log, 
+				this.log,
 				this.devices[index]);
-			var accessoryaction  = new VirtualDeviceAccessoryAction(
-				this.log, 
-				this.devices[index].name, accessory);
-			
-			accessory.setAccessoryAction(accessoryaction);
-			
-			
-			foundAccessories.push(accessory);
-			foundAccessories.push(accessoryaction);
+			// var accessoryaction  = new VirtualDeviceAccessoryAction(
+			// 	this.log,
+			// 	this.devices[index].name, accessory);
+      //
+			// accessory.setAccessoryAction(accessoryaction);
+      //
+      //
+			// foundAccessories.push(accessory);
+			// foundAccessories.push(accessoryaction);
 		}
-		
+
 		callback(foundAccessories);
 	}
 };
-
-
-
-
-
-
-
-
 
 
 //---------------------------------------------------------------------------------------
@@ -69,45 +61,52 @@ VirtualDevicePlatform.prototype = {
 function VirtualDeviceAccessory(log, device) {
 	this.log = log;
 	this.name = device["name"];
-	this._state = false;
-	
-	this._accessoryService = new VirtualDeviceAccessorySwitch(this.log, this.name + " TEST Accessory", this._state);
-	//this._accessoryactionService = new VirtualDeviceAccessoryAction(this.log, this.name + " TEST Accessory Action", this._accessoryService);
-	
+	this.state = false;
 
-	 this._service = new Service.Lightbulb(this.name);
-	 
-	 this.accessoryaction = "";
-      
-  this.informationService = new Service.AccessoryInformation();
-  this.informationService
+  this.vdaAccessoryService = new Service.Lightbulb(this.name + ' Accessory');
+  this.vdaAccessoryActionService = new Service.Switch(this.name + ' Accessory Action');
+
+  this.AccessoryInformationService = new Service.AccessoryInformation();
+  this.AccessoryInformationService
       .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
       .setCharacteristic(Characteristic.Model, 'Accessory')
       .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
       .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessory_' + this.name.replace(/\s/g, '_'));
-  
+
+
+  this.AccessoryActionInformationService = new Service.AccessoryInformation();
+  this.AccessoryActionInformationService
+      .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
+      .setCharacteristic(Characteristic.Model, 'Accessory Action')
+      .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
+      .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessoryAction_' + this.name.replace(/\s/g, '_'));
+
   this.cacheDirectory = HomebridgeAPI.user.persistPath();
   this.storage = require('node-persist');
-  this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});	
-	
-	
-  this._service.getCharacteristic(Characteristic.On)
+  this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});
+
+  this.vdaAccessoryService.getCharacteristic(Characteristic.On)
     .on('set', this._setOn.bind(this));
-	
+
+  this.vdaAccessoryActionService.getCharacteristic(Characteristic.On)
+    .on('set', this._setOn.bind(this));
+
   var cachedState = this.storage.getItemSync(this.name);
   if((cachedState === undefined) || (cachedState === false)) {
-    this._service.setCharacteristic(Characteristic.On, false);
-    } 
-  else {
-    this._service.setCharacteristic(Characteristic.On, true);
+    this.vdaAccessoryService.setCharacteristic(Characteristic.On, false);
+    this.vdaAccessoryActionService.setCharacteristic(Characteristic.On, false);
     }
-	
+  else {
+    this.vdaAccessoryService.setCharacteristic(Characteristic.On, true);
+    this.vdaAccessoryActionService.setCharacteristic(Characteristic.On, true);
+    }
+
 }
 
 VirtualDeviceAccessory.prototype.getServices = function() {
-	
+
   return [this.informationService, this._service];
-	
+
 }
 
 VirtualDeviceAccessory.prototype._setOn = function(on, callback) {
@@ -115,183 +114,259 @@ VirtualDeviceAccessory.prototype._setOn = function(on, callback) {
   this.log("Setting [Accessory] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
 
     this._state = on;
-    
+
     if (this._state != this.accessoryaction._state) {
       this.accessoryaction._service.setCharacteristic(Characteristic.On, on);
     }
-  
-  
+
+
 
   this.storage.setItemSync(this.name, on);
   callback();
-	
-}
 
-VirtualDeviceAccessory.prototype.setAccessoryAction = function(accessoryaction) {
-	
-  this.accessoryaction = accessoryaction;
-	
-}
-
-//---------------------------------------------------------------------------------------
-
-//Virtual DEVICE ACCESSORY SWITCH
-
-//---------------------------------------------------------------------------------------
-
-
-
-function VirtualDeviceAccessorySwitch(log, name, state) {
-	this.log = log;
-	this.name = name;
-	  this._state = false;
-	
-	console.log(this.name + " = " + "Test");
-	
-	 this._service = new Service.Lightbulb(this.name);
-	 
-	 this.accessoryaction = "";
-      
-  this.informationService = new Service.AccessoryInformation();
-  this.informationService
-      .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
-      .setCharacteristic(Characteristic.Model, 'Accessory')
-      .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
-      .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessory_' + this.name.replace(/\s/g, '_'));
-  
-  this.cacheDirectory = HomebridgeAPI.user.persistPath();
-  this.storage = require('node-persist');
-  this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});	
-	
-	
-  this._service.getCharacteristic(Characteristic.On)
-    .on('set', this._setOn.bind(this));
-	
-  var cachedState = this.storage.getItemSync(this.name);
-  if((cachedState === undefined) || (cachedState === false)) {
-    this._service.setCharacteristic(Characteristic.On, false);
-    } 
-  else {
-    this._service.setCharacteristic(Characteristic.On, true);
-    }
-	
-}
-
-VirtualDeviceAccessorySwitch.prototype.getServices = function() {
-	
-  return [this.informationService, this._service];
-	
-}
-
-VirtualDeviceAccessorySwitch.prototype._setOn = function(on, callback) {
-
-  this.log("Setting [Accessory] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
-
-    this._state = on;
-    
-    if (this._state != this.accessoryaction._state) {
-      this.accessoryaction._service.setCharacteristic(Characteristic.On, on);
-    }
-  
-  
-
-  this.storage.setItemSync(this.name, on);
-  callback();
-	
-}
-
-VirtualDeviceAccessorySwitch.prototype.setAccessoryAction = function(accessoryaction) {
-	
-  this.accessoryaction = accessoryaction;
-	
 }
 
 
 
 
 
-
-
-//---------------------------------------------------------------------------------------
-
-//Virtual DEVICE ACCESSORY ACTION
-
-//---------------------------------------------------------------------------------------
-
-
-function VirtualDeviceAccessoryAction(log, name, accessory) {
-	
-  this.log = log;
-  this.name = name + " Accessory Action";
-  this._service = new Service.Switch(this.name);
-  this._state = false;
-  
-  this.accessory = accessory;  
-  
-  this.informationService = new Service.AccessoryInformation();
-  this.informationService
-      .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
-      .setCharacteristic(Characteristic.Model, 'Accessory Action')
-      .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
-      .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessoryAction_' + this.name.replace(/\s/g, '_'));
-  
-  this.cacheDirectory = HomebridgeAPI.user.persistPath();
-  this.storage = require('node-persist');
-  this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});	
-	
-	
-  this._service.getCharacteristic(Characteristic.On)
-    .on('set', this._setOn.bind(this));
-	
-  var cachedState = this.storage.getItemSync(this.name);
-  if((cachedState === undefined) || (cachedState === false)) {
-    this._service.setCharacteristic(Characteristic.On, false);
-    } 
-  else {
-    this._service.setCharacteristic(Characteristic.On, true);
-    }
-	
-}
-
-VirtualDeviceAccessoryAction.prototype.getServices = function() {
-	
-  return [this.informationService, this._service];
-	
-}
-
-VirtualDeviceAccessoryAction.prototype._setOn = function(on, callback) {
-
-  if (on && this._state){
-    this.log("Setting [Accessory Action] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
-    setTimeout(() => {
-      this._service.setCharacteristic(Characteristic.On, false)
-      }, 100);
-    } 
-  else {
-    this._state = on;
-    
-	      this.log("Setting [Accessory Action] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
-    this.storage.setItemSync(this.name, on);
-    }
-	
-
-	
-this.accessory._service.setCharacteristic(Characteristic.On, this._state);
-	
-  callback();
-	
-}
-
-VirtualDeviceAccessoryAction.prototype.getStringFromState = function (state) {
-  return state ? 'on' : 'off'
-}
-
-
-
-
-
-
-
+//
+//
+//
+// //---------------------------------------------------------------------------------------
+//
+// //Virtual DEVICE ACCESSORY
+//
+// //---------------------------------------------------------------------------------------
+//
+//
+//
+// function VirtualDeviceAccessory(log, device) {
+// 	this.log = log;
+// 	this.name = device["name"];
+// 	this._state = false;
+//
+// 	this._accessoryService = new VirtualDeviceAccessorySwitch(this.log, this.name + " TEST Accessory", this._state);
+// 	//this._accessoryactionService = new VirtualDeviceAccessoryAction(this.log, this.name + " TEST Accessory Action", this._accessoryService);
+//
+//
+// 	 this._service = new Service.Lightbulb(this.name);
+//
+// 	 this.accessoryaction = "";
+//
+//   this.informationService = new Service.AccessoryInformation();
+//   this.informationService
+//       .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
+//       .setCharacteristic(Characteristic.Model, 'Accessory')
+//       .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
+//       .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessory_' + this.name.replace(/\s/g, '_'));
+//
+//   this.cacheDirectory = HomebridgeAPI.user.persistPath();
+//   this.storage = require('node-persist');
+//   this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});
+//
+//
+//   this._service.getCharacteristic(Characteristic.On)
+//     .on('set', this._setOn.bind(this));
+//
+//   var cachedState = this.storage.getItemSync(this.name);
+//   if((cachedState === undefined) || (cachedState === false)) {
+//     this._service.setCharacteristic(Characteristic.On, false);
+//     }
+//   else {
+//     this._service.setCharacteristic(Characteristic.On, true);
+//     }
+//
+// }
+//
+// VirtualDeviceAccessory.prototype.getServices = function() {
+//
+//   return [this.informationService, this._service];
+//
+// }
+//
+// VirtualDeviceAccessory.prototype._setOn = function(on, callback) {
+//
+//   this.log("Setting [Accessory] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
+//
+//     this._state = on;
+//
+//     if (this._state != this.accessoryaction._state) {
+//       this.accessoryaction._service.setCharacteristic(Characteristic.On, on);
+//     }
+//
+//
+//
+//   this.storage.setItemSync(this.name, on);
+//   callback();
+//
+// }
+//
+// VirtualDeviceAccessory.prototype.setAccessoryAction = function(accessoryaction) {
+//
+//   this.accessoryaction = accessoryaction;
+//
+// }
+//
+// //---------------------------------------------------------------------------------------
+//
+// //Virtual DEVICE ACCESSORY SWITCH
+//
+// //---------------------------------------------------------------------------------------
+//
+//
+//
+// function VirtualDeviceAccessorySwitch(log, name, state) {
+// 	this.log = log;
+// 	this.name = name;
+// 	  this._state = false;
+//
+// 	console.log(this.name + " = " + "Test");
+//
+// 	 this._service = new Service.Lightbulb(this.name);
+//
+// 	 this.accessoryaction = "";
+//
+//   this.informationService = new Service.AccessoryInformation();
+//   this.informationService
+//       .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
+//       .setCharacteristic(Characteristic.Model, 'Accessory')
+//       .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
+//       .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessory_' + this.name.replace(/\s/g, '_'));
+//
+//   this.cacheDirectory = HomebridgeAPI.user.persistPath();
+//   this.storage = require('node-persist');
+//   this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});
+//
+//
+//   this._service.getCharacteristic(Characteristic.On)
+//     .on('set', this._setOn.bind(this));
+//
+//   var cachedState = this.storage.getItemSync(this.name);
+//   if((cachedState === undefined) || (cachedState === false)) {
+//     this._service.setCharacteristic(Characteristic.On, false);
+//     }
+//   else {
+//     this._service.setCharacteristic(Characteristic.On, true);
+//     }
+//
+// }
+//
+// VirtualDeviceAccessorySwitch.prototype.getServices = function() {
+//
+//   return [this.informationService, this._service];
+//
+// }
+//
+// VirtualDeviceAccessorySwitch.prototype._setOn = function(on, callback) {
+//
+//   this.log("Setting [Accessory] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
+//
+//     this._state = on;
+//
+//     if (this._state != this.accessoryaction._state) {
+//       this.accessoryaction._service.setCharacteristic(Characteristic.On, on);
+//     }
+//
+//
+//
+//   this.storage.setItemSync(this.name, on);
+//   callback();
+//
+// }
+//
+// VirtualDeviceAccessorySwitch.prototype.setAccessoryAction = function(accessoryaction) {
+//
+//   this.accessoryaction = accessoryaction;
+//
+// }
+//
+//
+//
+//
+//
+//
+//
+// //---------------------------------------------------------------------------------------
+//
+// //Virtual DEVICE ACCESSORY ACTION
+//
+// //---------------------------------------------------------------------------------------
+//
+//
+// function VirtualDeviceAccessoryAction(log, name, accessory) {
+//
+//   this.log = log;
+//   this.name = name + " Accessory Action";
+//   this._service = new Service.Switch(this.name);
+//   this._state = false;
+//
+//   this.accessory = accessory;
+//
+//   this.informationService = new Service.AccessoryInformation();
+//   this.informationService
+//       .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
+//       .setCharacteristic(Characteristic.Model, 'Accessory Action')
+//       .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
+//       .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessoryAction_' + this.name.replace(/\s/g, '_'));
+//
+//   this.cacheDirectory = HomebridgeAPI.user.persistPath();
+//   this.storage = require('node-persist');
+//   this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});
+//
+//
+//   this._service.getCharacteristic(Characteristic.On)
+//     .on('set', this._setOn.bind(this));
+//
+//   var cachedState = this.storage.getItemSync(this.name);
+//   if((cachedState === undefined) || (cachedState === false)) {
+//     this._service.setCharacteristic(Characteristic.On, false);
+//     }
+//   else {
+//     this._service.setCharacteristic(Characteristic.On, true);
+//     }
+//
+// }
+//
+// VirtualDeviceAccessoryAction.prototype.getServices = function() {
+//
+//   return [this.informationService, this._service];
+//
+// }
+//
+// VirtualDeviceAccessoryAction.prototype._setOn = function(on, callback) {
+//
+//   if (on && this._state){
+//     this.log("Setting [Accessory Action] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
+//     setTimeout(() => {
+//       this._service.setCharacteristic(Characteristic.On, false)
+//       }, 100);
+//     }
+//   else {
+//     this._state = on;
+//
+// 	      this.log("Setting [Accessory Action] : " + this.name.replace(/\s/g, '_') + " from " + !on + " to " + on);
+//     this.storage.setItemSync(this.name, on);
+//     }
+//
+//
+//
+// this.accessory._service.setCharacteristic(Characteristic.On, this._state);
+//
+//   callback();
+//
+// }
+//
+// VirtualDeviceAccessoryAction.prototype.getStringFromState = function (state) {
+//   return state ? 'on' : 'off'
+// }
+//
+//
+//
+//
+//
+//
+//
 
 
 
@@ -304,41 +379,41 @@ VirtualDeviceAccessoryAction.prototype.getStringFromState = function (state) {
 
 
 function VirtualDeviceAccessoryGroup(log, name) {
-	
+
   this.log = log;
   this.name = name + 'Accessory Group';
- 
+
    this._service = new Service.Fan(this.name);
-      
+
   this.informationService = new Service.AccessoryInformation();
   this.informationService
       .setCharacteristic(Characteristic.Manufacturer, 'Virtual Device Platform')
       .setCharacteristic(Characteristic.Model, 'Accessory Group')
       .setCharacteristic(Characteristic.FirmwareRevision, HomebridgeVDPVersion)
       .setCharacteristic(Characteristic.SerialNumber, 'VDPAccessoryGroup_' + this.name.replace(/\s/g, '_'));
-  
+
   this.cacheDirectory = HomebridgeAPI.user.persistPath();
   this.storage = require('node-persist');
-  this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});	
-	
-	
+  this.storage.initSync({dir:this.cacheDirectory, forgiveParseErrors: true});
+
+
   this._service.getCharacteristic(Characteristic.On)
     .on('set', this._setOn.bind(this));
-	
+
   var cachedState = this.storage.getItemSync(this.name);
   if((cachedState === undefined) || (cachedState === false)) {
     this._service.setCharacteristic(Characteristic.On, false);
-    } 
+    }
   else {
     this._service.setCharacteristic(Characteristic.On, true);
     }
-	
+
 }
 
 VirtualDeviceAccessoryGroup.prototype.getServices = function() {
-	
+
   return [this.informationService, this._service];
-	
+
 }
 
 VirtualDeviceAccessoryGroup.prototype._setOn = function(on, callback) {
@@ -346,5 +421,5 @@ VirtualDeviceAccessoryGroup.prototype._setOn = function(on, callback) {
   this.log("Setting [Accessory Group] : " + this.name.replace(/\s/g, '_') + " to " + on);
   this.storage.setItemSync(this.name, on);
   callback();
-	
+
 }
